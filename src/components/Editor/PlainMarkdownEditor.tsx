@@ -120,6 +120,7 @@ export const PlainMarkdownEditor: React.FC<PlainMarkdownEditorProps> = ({
         onChange={handleChange}
         onScroll={handleTextareaScroll}
         placeholder={placeholder}
+        spellCheck={false}
         className="flex-1 p-4 font-mono text-sm border-0 outline-none resize-none bg-vscode-editor text-vscode-primary vscode-scrollbar vscode-selection placeholder-vscode-muted"
         style={{
           minHeight: "100%",

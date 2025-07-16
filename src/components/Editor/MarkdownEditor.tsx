@@ -91,7 +91,10 @@ const EditorContent: React.FC<{
         >
           <RichTextPlugin
             contentEditable={
-              <ContentEditable className="p-4 min-h-full outline-none resize-none text-vscode-primary bg-vscode-editor vscode-scrollbar vscode-selection" />
+              <ContentEditable 
+                className="p-4 min-h-full outline-none resize-none text-vscode-primary bg-vscode-editor vscode-scrollbar vscode-selection" 
+                spellCheck={false}
+              />
             }
             placeholder={placeholder}
             ErrorBoundary={() => (
