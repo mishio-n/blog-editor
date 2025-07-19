@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState } from "react";
+import { useOGImageSettings } from "../../hooks/useOGImageSettings";
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onSettingsChange,
 }) => {
   const [localSettings, setLocalSettings] = useState(settings);
+  const { settings: ogSettings, updateSettings: updateOGSettings } = useOGImageSettings();
 
   const handleSettingChange = <K extends keyof typeof settings>(
     key: K,
@@ -185,6 +187,96 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             >
               シンタックスハイライト
             </label>
+          </div>
+
+          {/* OG画像設定セクション */}
+          <div className="mt-6 pt-4 border-t border-vscode">
+            <h3 className="text-lg font-medium text-vscode-primary mb-4">🖼️ OG画像設定</h3>
+            
+            {/* OG画像表示有効/無効 */}
+            <div className="flex items-center mb-4">
+              <input
+                type="checkbox"
+                id="ogImageEnabled"
+                checked={ogSettings.enabled}
+                onChange={(e) =>
+                  updateOGSettings({ enabled: e.target.checked })
+                }
+                className="mr-2"
+              />
+              <label
+                htmlFor="ogImageEnabled"
+                className="text-sm font-medium text-vscode-primary"
+              >
+                OG画像表示を有効にする
+              </label>
+            </div>
+
+            {/* プレビューでのOG画像表示 */}
+            <div className="flex items-center mb-4">
+              <input
+                type="checkbox"
+                id="ogImageShowInPreview"
+                checked={ogSettings.showInPreview}
+                onChange={(e) =>
+                  updateOGSettings({ showInPreview: e.target.checked })
+                }
+                disabled={!ogSettings.enabled}
+                className="mr-2"
+              />
+              <label
+                htmlFor="ogImageShowInPreview"
+                className={`text-sm font-medium ${
+                  ogSettings.enabled ? 'text-vscode-primary' : 'text-vscode-secondary'
+                }`}
+              >
+                プレビューでOG画像を表示
+              </label>
+            </div>
+
+            {/* 最大画像数設定 */}
+            <div className={ogSettings.enabled ? '' : 'opacity-50'}>
+              <label
+                htmlFor="maxImagesPerPage"
+                className="block text-sm font-medium mb-2 text-vscode-primary"
+              >
+                ページあたりの最大画像数: {ogSettings.maxImagesPerPage}
+              </label>
+              <input
+                id="maxImagesPerPage"
+                type="range"
+                min="1"
+                max="20"
+                value={ogSettings.maxImagesPerPage}
+                onChange={(e) =>
+                  updateOGSettings({ maxImagesPerPage: Number(e.target.value) })
+                }
+                disabled={!ogSettings.enabled}
+                className="w-full"
+              />
+            </div>
+
+            {/* キャッシュ設定 */}
+            <div className="flex items-center mt-4">
+              <input
+                type="checkbox"
+                id="ogImageCache"
+                checked={ogSettings.cacheEnabled}
+                onChange={(e) =>
+                  updateOGSettings({ cacheEnabled: e.target.checked })
+                }
+                disabled={!ogSettings.enabled}
+                className="mr-2"
+              />
+              <label
+                htmlFor="ogImageCache"
+                className={`text-sm font-medium ${
+                  ogSettings.enabled ? 'text-vscode-primary' : 'text-vscode-secondary'
+                }`}
+              >
+                OG画像キャッシュを有効にする
+              </label>
+            </div>
           </div>
         </div>
 

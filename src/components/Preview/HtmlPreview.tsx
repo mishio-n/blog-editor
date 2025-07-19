@@ -2,6 +2,9 @@ import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useDebounce } from "../../hooks/useDebounce";
+import { useOGImageSettings } from "../../hooks/useOGImageSettings";
+import { extractLinksFromMarkdown, getExternalLinks, getUniqueLinks } from "../../utils/linkExtractor";
+import { OGImageCard } from "./OGImageCard";
 
 interface HtmlPreviewProps {
   markdown: string;
@@ -19,9 +22,23 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = ({
   className = "",
 }) => {
   const [html, setHtml] = useState<string>("");
+  const { settings: ogSettings } = useOGImageSettings();
   
   // パフォーマンス最適化: Markdownをデバウンス（300ms遅延）
   const debouncedMarkdown = useDebounce(markdown, 300);
+
+  // 外部リンクの抽出とOG画像表示対象の選定
+  const externalLinks = useMemo(() => {
+    if (!ogSettings.enabled || !ogSettings.showInPreview || !debouncedMarkdown.trim()) {
+      return [];
+    }
+
+    const allLinks = extractLinksFromMarkdown(debouncedMarkdown);
+    const uniqueExternalLinks = getUniqueLinks(getExternalLinks(allLinks));
+    
+    // 最大画像数でフィルタリング
+    return uniqueExternalLinks.slice(0, ogSettings.maxImagesPerPage);
+  }, [debouncedMarkdown, ogSettings.enabled, ogSettings.showInPreview, ogSettings.maxImagesPerPage]);
 
   // react-markdownを使用するため、HTML変換は不要
   // 代わりにHTMLコピー機能のためにMarkdownからHTMLを生成
@@ -86,14 +103,31 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = ({
         p: ({ children }) => (
           <p className="text-vscode-primary mb-4">{children}</p>
         ),
-        a: ({ children, href }) => (
-          <a
-            href={href}
-            className="text-blue-400 hover:text-blue-300 underline"
-          >
-            {children}
-          </a>
-        ),
+        a: ({ children, href }) => {
+          // OG画像が有効でかつ外部リンクの場合、OGImageCardで表示
+          if (ogSettings.enabled && ogSettings.showInPreview && href && 
+              externalLinks.some(link => link.url === href)) {
+            return (
+              <OGImageCard
+                url={href}
+                linkText={typeof children === 'string' ? children : href}
+                className="my-4"
+              />
+            );
+          }
+          
+          // 通常のリンク表示
+          return (
+            <a
+              href={href}
+              className="text-blue-400 hover:text-blue-300 underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {children}
+            </a>
+          );
+        },
         code: ({ children }) => (
           <code className="bg-vscode-tertiary text-vscode-primary px-1 py-0.5 rounded text-sm font-mono">
             {children}
@@ -141,7 +175,7 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = ({
     >
       {debouncedMarkdown}
     </ReactMarkdown>
-  ), [debouncedMarkdown]);
+  ), [debouncedMarkdown, externalLinks, ogSettings.enabled, ogSettings.showInPreview]);
 
   return (
     <div
@@ -169,6 +203,24 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = ({
         <div className="prose prose-invert max-w-none text-vscode-primary vscode-selection">
           {renderedMarkdown}
         </div>
+
+        {/* OG画像カード一覧（Markdown内のリンクとは別に表示） */}
+        {ogSettings.enabled && ogSettings.showInPreview && externalLinks.length > 0 && (
+          <div className="mt-8 pt-6 border-t border-vscode">
+            <h3 className="text-vscode-primary text-lg font-medium mb-4">
+              🔗 外部リンクプレビュー
+            </h3>
+            <div className="grid gap-4 md:grid-cols-2">
+              {externalLinks.map((link, index) => (
+                <OGImageCard
+                  key={`${link.url}-${index}`}
+                  url={link.url}
+                  linkText={link.text}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {html && (
