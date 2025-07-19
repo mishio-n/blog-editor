@@ -13,15 +13,15 @@ export interface ProxyConfig {
 // 利用可能なプロキシサーバー（優先順）
 export const PROXY_SERVERS = [
   'https://api.allorigins.win/get?url=',
-  'https://corsproxy.io/?',
-  'https://cors-anywhere.herokuapp.com/',
+  'https://api.codetabs.com/v1/proxy?quest=',
+  'https://corsproxy.org/?',
 ] as const;
 
 export const PROXY_CONFIG: ProxyConfig = {
   baseUrl: PROXY_SERVERS[0], // デフォルトはallorigins
-  timeout: 10000, // 10秒
-  retryAttempts: 2,
-  retryDelay: 1000, // 1秒
+  timeout: 15000, // 15秒
+  retryAttempts: 1, // リトライ回数を減らす
+  retryDelay: 2000, // 2秒
 };
 
 /**

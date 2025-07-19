@@ -64,6 +64,7 @@ class OGImageService {
     }
 
     // OG画像データ取得試行
+    let lastError = '';
     for (let proxyIndex = 0; proxyIndex < PROXY_SERVERS.length; proxyIndex++) {
       for (let attempt = 0; attempt <= PROXY_CONFIG.retryAttempts; attempt++) {
         try {
@@ -73,10 +74,23 @@ class OGImageService {
             return result;
           }
         } catch (error) {
-          console.warn(`OG画像取得失敗 (プロキシ${proxyIndex}, 試行${attempt + 1}):`, error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          let detailedError = errorMessage;
+          
+          // 特定のエラータイプに応じた処理
+          if (errorMessage.includes('Failed to fetch')) {
+            detailedError = 'ネットワークエラーまたはCORSブロック';
+          } else if (errorMessage.includes('ERR_BLOCKED_BY_CLIENT')) {
+            detailedError = 'ブラウザまたはアドブロッカーによってブロック';
+          } else if (errorMessage.includes('AbortError')) {
+            detailedError = 'タイムアウト';
+          }
+          
+          lastError = `プロキシ${proxyIndex + 1} (${PROXY_SERVERS[proxyIndex]}): ${detailedError}`;
+          console.warn(`OG画像取得失敗 (プロキシ${proxyIndex + 1}, 試行${attempt + 1}):`, detailedError);
           
           if (attempt < PROXY_CONFIG.retryAttempts) {
-            await this.delay(PROXY_CONFIG.retryDelay);
+            await this.delay(PROXY_CONFIG.retryDelay * Math.pow(2, attempt)); // 指数バックオフ
           }
         }
       }
@@ -84,7 +98,7 @@ class OGImageService {
 
     return {
       success: false,
-      error: 'OG画像の取得に失敗しました',
+      error: `OG画像の取得に失敗しました。最後のエラー: ${lastError}`,
     };
   }
 
@@ -103,23 +117,38 @@ class OGImageService {
     try {
       const response = await fetch(proxyUrl, {
         signal: controller.signal,
+        method: 'GET',
         headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
         },
+        mode: 'cors',
+        credentials: 'omit',
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        let errorDetail = `HTTP ${response.status}: ${response.statusText}`;
+        if (response.status === 403) {
+          errorDetail += ' (アクセス拒否 - プロキシサービスが制限されている可能性があります)';
+        } else if (response.status === 429) {
+          errorDetail += ' (リクエスト制限 - 一時的な制限がかかっている可能性があります)';
+        }
+        throw new Error(errorDetail);
       }
 
       let html: string;
       
-      // alloriginsの場合は特別な処理
+      // プロキシサーバー別の特別な処理
       if (PROXY_SERVERS[proxyIndex].includes('allorigins')) {
         const json = await response.json();
         html = json.contents;
+      } else if (PROXY_SERVERS[proxyIndex].includes('codetabs')) {
+        html = await response.text();
       } else {
         html = await response.text();
       }
